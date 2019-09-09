@@ -9,25 +9,63 @@
 
 #define Max_dis 100 //ค่าระยะสูงสุดที่คนเดินเข้ามา
 #define Low_dis 10 //ค่าระยะต่ำสุดที่คนเดืนเข้า
-#define dooropen 0 //door state สถานะการเปิดประตู
-#define doorclose 1 //door state
+//#define dooropen 0 //door state สถานะการเปิดประตู
+//#define doorclose 1 //door state
 #define time_check_door 200 //เวลาเช็คสถานะประตู เช็คทุก 200 มิลลิวิ
 #define time_check_SW 50 //เวลาเช็คสถานะประตู เช็คทุก 50 มิลลิวิ
 #define time_delay_door 3000 //เวลาเช็คสถานะประตู เช็คทุก 3 วิ
 
+class motor{
+private:
+  byte pinN;
+  byte pinP;
+public:
+  enum door{dooropen,doorclose,doorstop}doorstate;
+  motor(byte pina,byte pinb){
+    pinN = pina;
+    pinP = pinb;
+    doorstate = doorclose;
+  }
+  ~motor(){};
+  begin(){
+    pinMode(pinN,OUTPUT);
+    pinMode(pinP,OUTPUT);
+  }
+  void drive(door controlstate){
+    switch(controlstate)
+    {
+      case dooropen:
+        digitalWrite(pinP,HIGH);
+        digitalWrite(pinN,LOW);
+        break;
+      case doorclose:
+        digitalWrite(pinP,LOW);
+        digitalWrite(pinN,HIGH);
+        break;
+      default:
+        digitalWrite(pinP,LOW);
+        digitalWrite(pinN,LOW); 
+        break;
+    }
+  }
+};
+
+motor controlMotor(motorA,motorB);
+motor::door command;
 HCSR04 Sensor_door(tpin,epin);
 
 float messur_dist = 0; //เก็บระยะทาง
 unsigned long time1 = 0; //เก็บระยะเวลาที่ฟังชั่นทำงาน
 unsigned long time2 = 0; //เก็บระยะเวลาที่ฟังชั่นทำงาน
 unsigned long doorTime = 0; //เก็บระยะเวลาประตูเปิด
-bool door = 0;
+//bool door = 0;
 
 void setup() {
   pinMode(Sdoor_close,INPUT);
   pinMode(Sdoor_open,INPUT);
-  pinMode(motorA,OUTPUT);
-  pinMode(motorB,OUTPUT);
+  controlMotor.begin();
+  /*pinMode(motorA,OUTPUT);
+  pinMode(motorB,OUTPUT);*/
 }
 
 void loop() {
@@ -48,19 +86,22 @@ void door_control()
      
     messur_dist = Sensor_door.dist();
     //ถ้าคนอยู่ในระยะ 10 ถัง 100เมตร กับประตูปิด ให้เปิดประตู
-    if((messur_dist>Low_dis&&messur_dist<Max_dis)&&door==doorclose)
+    if((messur_dist>Low_dis&&messur_dist<Max_dis)&&controlMotor.doorstate==motor::dooropen)
     {
-      openAdoor();
+      //openAdoor();
+      controlMotor.drive(motor::dooropen);
       doorTime = millis();
     }
     else
     {
       //ถ้าประตูเปิดอยู่แล้วเปิดเกิน 3 วินาทีสั่งปิด
-      if(door==dooropen&&millis()-doorTime >= time_delay_door)
-        closeAdoor();
+      if(controlMotor.doorstate==motor::dooropen&&millis()-doorTime >= time_delay_door)
+        //closeAdoor();
+        controlMotor.drive(motor::doorclose);
       else
         //ถ้าประตูปิดแล้ว และ คนไม่อยู่ในระยะให้หยุดมอเตอร์
-        stopAdoor();
+        //stopAdoor();
+        controlMotor.drive(motor::doorstop);
     }
 }
 
@@ -70,10 +111,11 @@ void sw_door()
     ถ้าสวิทฝั่งเปิดเป็น 1 กับฝั่งปิด เป็น 0 ถือว่า เปิด
     ถ้าสวิทฝั่งเปิดเป็น 0 กับฝั่งปิด เป็น 0 ถือว่า เปิด
   */
-  door = (digitalRead(Sdoor_close)==HIGH&&digitalRead(Sdoor_open)==LOW)?doorclose:dooropen;
+  //door = (digitalRead(Sdoor_close)==HIGH&&digitalRead(Sdoor_open)==LOW)?doorclose:dooropen;
+  controlMotor.doorstate = (digitalRead(Sdoor_close)==HIGH&&digitalRead(Sdoor_open)==LOW)?motor::doorclose:motor::dooropen;
 }
 
-void openAdoor()
+/*void openAdoor()
 {
   digitalWrite(motorA,HIGH);
   digitalWrite(motorB,LOW);
@@ -87,4 +129,4 @@ void stopAdoor()
 {
   digitalWrite(motorA,LOW);
   digitalWrite(motorB,LOW);
-}
+}*/
